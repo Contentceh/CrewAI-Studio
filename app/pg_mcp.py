@@ -16,6 +16,11 @@ class PageMCP:
                    "не вызывает инструменты и не запускает LLM. Статус действителен 5 минут.")
         self.draw_connections()
 
+    @staticmethod
+    def check_all(connections):
+        for connection in connections:
+            CHECKS.submit(connection)
+
     @st.fragment(run_every="1s")
     def draw_connections(self):
         connections, warning = load_inventory()
@@ -24,10 +29,9 @@ class PageMCP:
         if not connections:
             st.info("MCP-подключения не настроены.")
             return
-        if st.button("Проверить все", key="mcp_check_all",
-                     disabled=not any(c.enabled for c in connections)):
-            for connection in connections:
-                CHECKS.submit(connection)
+        st.button("Проверить все", key="mcp_check_all",
+                  disabled=not any(c.enabled for c in connections),
+                  on_click=self.check_all, args=(connections,))
 
         for connection in connections:
             result, pending = CHECKS.snapshot(connection)
@@ -40,10 +44,9 @@ class PageMCP:
                     st.text(f"Тип: {connection.transport}")
                     st.text("Подключение включено: " + ("Да" if connection.enabled else "Нет"))
                 with right:
-                    if st.button("Проверить", key=f"mcp_check_{connection.adapter_id}",
-                                 disabled=not connection.enabled or pending):
-                        CHECKS.submit(connection)
-                        st.rerun()
+                    st.button("Проверить", key=f"mcp_check_{connection.adapter_id}",
+                              disabled=not connection.enabled or pending,
+                              on_click=CHECKS.submit, args=(connection,))
                 if pending:
                     st.status("Ожидание результата MCP-проверки…", state="running")
                 if not connection.registered:
