@@ -22,12 +22,7 @@ class PageKnowledge:
 
     def clear_knowledge(self):
         # This will clear knowledge stores in CrewAI
-        # Get CrewAI home directory
-        home_dir = Path.home()
-        crewai_dir = home_dir / ".crewai"
-        
-        # Remove knowledge folder
-        knowledge_dir = crewai_dir / "knowledge"
+        knowledge_dir = Path(os.environ.get("CREWAI_KNOWLEDGE_DIR", "/var/lib/crewai/knowledge"))
         if knowledge_dir.exists():
             shutil.rmtree(knowledge_dir)
             st.success("Knowledge stores cleared successfully!")
@@ -41,7 +36,7 @@ class PageKnowledge:
         st.markdown(t("knowledge.description"))
 
         # Create knowledge directory if it doesn't exist
-        os.makedirs("knowledge", exist_ok=True)
+        os.makedirs(os.environ.get("CREWAI_KNOWLEDGE_DIR", "/var/lib/crewai/knowledge"), exist_ok=True)
 
         # Clear knowledge button
         st.button(t("button.clear_knowledge"), on_click=self.clear_knowledge,

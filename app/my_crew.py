@@ -41,6 +41,7 @@ class MyCrew:
 
     def get_crewai_crew(self, *args, **kwargs) -> Crew:
         crewai_agents = [agent.get_crewai_agent() for agent in self.agents]
+        crewai_agents_by_id = {agent.id: crewai_agent for agent, crewai_agent in zip(self.agents, crewai_agents)}
 
         # Create a dictionary to hold the Task objects
         task_objects = {}
@@ -63,9 +64,9 @@ class MyCrew:
 
             # Only pass context if it's an async task or if specific context is defined
             if task.async_execution or context_tasks:
-                crewai_task = task.get_crewai_task(context_from_async_tasks=context_tasks)
+                crewai_task = task.get_crewai_task(context_from_async_tasks=context_tasks, crewai_agent=crewai_agents_by_id.get(task.agent.id))
             else:
-                crewai_task = task.get_crewai_task()
+                crewai_task = task.get_crewai_task(crewai_agent=crewai_agents_by_id.get(task.agent.id))
 
             task_objects[task.id] = crewai_task
             return crewai_task

@@ -4,6 +4,7 @@ from my_tools import TOOL_CLASSES
 from streamlit import session_state as ss
 import db_utils
 from i18n import t
+from mcp_tools import mcp_tool_metadata
 
 class PageTools:
     def __init__(self):
@@ -56,6 +57,8 @@ class PageTools:
                     expander_title = display_name if is_complete else f"❗ {display_name}"
                     with st.expander(expander_title):
                         st.write(tool.description)
+                        if tool.name == "MCPFixtureTool":
+                            st.caption(f"Adapter: {mcp_tool_metadata()['adapter_id']} | Tool: {mcp_tool_metadata()['remote_tool_name']} | Resources: {', '.join(mcp_tool_metadata()['approved_resources'])} | Timeout: {mcp_tool_metadata()['timeout_seconds']}s | Retries: {mcp_tool_metadata()['max_retries']}")
                         for param_name in tool.get_parameter_names():
                             param_value = tool.parameters.get(param_name, "")
                             placeholder = t("tools.required") if tool.is_parameter_mandatory(param_name) else t("tools.optional")

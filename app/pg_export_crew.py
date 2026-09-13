@@ -14,6 +14,7 @@ from my_agent import MyAgent
 from my_task import MyTask
 from datetime import datetime
 from i18n import t
+from export_policy import serialize_tool_parameters
 
 # Tools that live in app/tools/ (not in crewai_tools). Their source files plus
 # the bundled i18n module must ship with the export.
@@ -369,16 +370,13 @@ class PageExportCrew:
         def format_tool_instance(tool):
             if tool.name not in TOOL_CLASSES:
                 return None
+            if tool.name == "MCPFixtureTool":
+                raise ValueError("Export unsupported: MCP runtime adapters require Studio operator registry")
             ctor_params = {}
             for key, value in tool.parameters.items():
-                if value is None:
-                    continue
-                if key.isupper():
-                    # Env-style credential (e.g. SERPER_API_KEY): belongs in
-                    # .env, never in the generated source code.
-                    env_params[key] = value
-                else:
+                if value is not None:
                     ctor_params[key] = value
+            serialize_tool_parameters(ctor_params, mode="block")
             params = ', '.join(f'{key}={json_dumps_python(value)}' for key, value in ctor_params.items())
             return f'{tool.name}({params})'
 
@@ -712,7 +710,9 @@ streamlit run app.py --server.headless true
         if not selected_crew:
             return None
 
-        output_dir = f"{crew_name}_app"
+        export_root = os.environ.get("CREWAI_EXPORT_DIR", "/tmp/crewai-exports")
+        os.makedirs(export_root, exist_ok=True)
+        output_dir = os.path.join(export_root, f"{crew_name}_app")
         if os.path.exists(output_dir):
             # Stale files from a previous export must not leak into the zip.
             shutil.rmtree(output_dir)
@@ -724,7 +724,7 @@ streamlit run app.py --server.headless true
         self.create_env_file(output_dir, export_info['env_params'])
         self.create_shell_scripts(output_dir)
 
-        zip_path = f"{crew_name}_app.zip"
+        zip_path = os.path.join(export_root, f"{crew_name}_app.zip")
         self.zip_directory(output_dir, zip_path)
         return zip_path
 
@@ -786,7 +786,7 @@ streamlit run app.py --server.headless true
                     'tool_id': tool.tool_id,
                     'name': tool.name,
                     'description': tool.description,
-                    'parameters': tool.get_parameters()
+                    'parameters': serialize_tool_parameters(tool.get_parameters(), mode="block")
                 }
                 crew_data['tools'].append(tool_data)
 
@@ -877,7 +877,7 @@ streamlit run app.py --server.headless true
         # Full JSON Export Button
         if st.button(t("export.export_all")):
             current_datetime = datetime.now().strftime("%Y%m%d_%H%M%S")
-            file_path = f"all_crews_{current_datetime}.json"
+            file_path = os.path.join("/tmp", f"all_crews_{current_datetime}.json")
             db_utils.export_to_json(file_path)
             with open(file_path, "rb") as fp:
                 st.download_button(
@@ -893,9 +893,10 @@ streamlit run app.py --server.headless true
             json_data = json.load(uploaded_file)
 
             if isinstance(json_data, list):  # Full database export
-                with open("uploaded_file.json", "w") as f:
+                file_path = os.path.join("/tmp", "uploaded_file.json")
+                with open(file_path, "w") as f:
                     json.dump(json_data, f)
-                db_utils.import_from_json("uploaded_file.json")
+                db_utils.import_from_json(file_path)
                 st.success(t("export.import_success_full"))
             elif isinstance(json_data, dict) and 'id' in json_data:  # Single crew export
                 imported_crew = self.import_crew_from_json(json_data)

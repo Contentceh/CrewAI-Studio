@@ -216,6 +216,7 @@
     "parameter_mandatory": "Parameter '{param}' is mandatory for tool '{tool}'"
   },
   "tool": {
+    "mcp_fixture": "MCP Fixture",
     "scrape_website": "ScrapeWebsiteTool",
     "scrape_website_desc": "A tool that can be used to read website content.",
     "file_read": "FileReadTool",

@@ -131,7 +131,10 @@ Conda will be installed locally in the project folder. No need for a pre-existin
 
 ## Running with Docker Compose
 
-To quickly set up and run CrewAI-Studio using Docker Compose, follow these steps:
+In this checkout, `studio/docker-compose.yaml` is an **extends fragment** for the
+parent project, not a standalone Compose application. Run Compose from
+`/home/vgoro/soft/crewai-panels`; the root configuration supplies shared services,
+volumes and operator-managed runtime configuration.
 
 ### Prerequisites
 
@@ -139,23 +142,15 @@ To quickly set up and run CrewAI-Studio using Docker Compose, follow these steps
 
 ### Steps
 
-1. Clone the repository:
-```
-git clone https://github.com/strnad/CrewAI-Studio.git
-cd CrewAI-Studio
-```
-
-2. Create a .env file for configuration.  Edit for your own configuration:
-```
-cp .env_example .env
+From the parent project directory, validate the canonical configuration:
+```bash
+docker compose config --quiet
 ```
 
-3. Start the application with Docker Compose:
-```
-docker-compose up --build
-```
-
-4. Access the application: http://localhost:8501
+Only when a deployment is separately authorized, use the root project's
+operator procedure. Do not run `docker compose up` from this nested directory,
+replace operator configuration with `.env_example`, or recreate shared services
+as part of Stage 1 tests. Stage 1 requires no service recreation.
 
 ## Configuration
 

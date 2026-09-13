@@ -2,6 +2,7 @@ import sqlite3
 import os
 import json
 import logging
+from export_policy import serialize_export_value
 from my_tools import TOOL_CLASSES, resolve_tool_id
 from sqlalchemy import create_engine, text
 
@@ -285,7 +286,7 @@ def export_to_json(file_path):
             {
                 'id': row.id,
                 'entity_type': row.entity_type,
-                'data': json.loads(row.data)
+                'data': serialize_export_value(json.loads(row.data), mode="block")
             }
             for row in result
         ]

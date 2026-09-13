@@ -28,7 +28,7 @@ class MyTask:
     def edit(self, value):
         ss[self.edit_key] = value
 
-    def get_crewai_task(self, context_from_async_tasks=None, context_from_sync_tasks=None) -> Task:
+    def get_crewai_task(self, context_from_async_tasks=None, context_from_sync_tasks=None, crewai_agent=None) -> Task:
         context = []
         if context_from_async_tasks:
             context.extend(context_from_async_tasks)
@@ -36,9 +36,9 @@ class MyTask:
             context.extend(context_from_sync_tasks)
         
         if context:
-            return Task(description=self.description, expected_output=self.expected_output, async_execution=self.async_execution, agent=self.agent.get_crewai_agent(), context=context)
+            return Task(description=self.description, expected_output=self.expected_output, async_execution=self.async_execution, agent=crewai_agent or self.agent.get_crewai_agent(), context=context)
         else:
-            return Task(description=self.description, expected_output=self.expected_output, async_execution=self.async_execution, agent=self.agent.get_crewai_agent())
+            return Task(description=self.description, expected_output=self.expected_output, async_execution=self.async_execution, agent=crewai_agent or self.agent.get_crewai_agent())
 
     def delete(self):
         ss.tasks = [task for task in ss.tasks if task.id != self.id]

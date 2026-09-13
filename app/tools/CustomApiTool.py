@@ -40,7 +40,7 @@ class CustomApiTool(BaseTool):
                 headers=headers,
                 params=query_params,
                 json=body,
-                verify=False #TODO: add option to disable SSL verification
+                verify=True
             )
             return {
                 "status_code": response.status_code,

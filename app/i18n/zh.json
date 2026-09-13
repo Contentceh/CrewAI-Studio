@@ -216,6 +216,7 @@
     "parameter_mandatory": "工具 '{tool}' 的参数 '{param}' 是必需的"
   },
   "tool": {
+    "mcp_fixture": "MCP Fixture",
     "scrape_website": "网页爬取工具",
     "scrape_website_desc": "可用于读取网站内容的工具。",
     "file_read": "文件读取工具",

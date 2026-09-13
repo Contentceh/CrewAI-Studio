@@ -1,5 +1,5 @@
 *.bat
-*.sh
+run_*.sh
 *.md
 .git
 .gitignore

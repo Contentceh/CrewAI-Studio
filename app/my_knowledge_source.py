@@ -40,8 +40,9 @@ class MyKnowledgeSource:
         if not file_path:
             return None
         else: #simply check if the file exists in the folder knowledge
-            if Path("knowledge", file_path).exists():
-                return file_path
+            actual_path = Path(os.environ.get("CREWAI_KNOWLEDGE_DIR", "/var/lib/crewai/knowledge"), file_path)
+            if actual_path.exists():
+                return str(actual_path)
             else:
                 return None
 
@@ -209,11 +210,12 @@ class MyKnowledgeSource:
                                 
                                 if uploaded_file is not None:
                                     # Create knowledge directory if it doesn't exist
-                                    os.makedirs("knowledge", exist_ok=True)
+                                    knowledge_dir = os.environ.get("CREWAI_KNOWLEDGE_DIR", "/var/lib/crewai/knowledge")
+                                    os.makedirs(knowledge_dir, exist_ok=True)
                                     
                                     # Save the uploaded file to the knowledge directory
                                     file_name = uploaded_file.name                                   
-                                    file_path = os.path.join("knowledge", file_name)
+                                    file_path = os.path.join(knowledge_dir, file_name)
                                     
                                     with open(file_path, "wb") as f:
                                         f.write(uploaded_file.getbuffer())

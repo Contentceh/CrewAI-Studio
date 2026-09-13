@@ -14,6 +14,7 @@ from tools.DuckDuckGoSearchTool import DuckDuckGoSearchTool
 
 from langchain_community.tools import YahooFinanceNewsTool
 from i18n import t, get_tool_label_variants
+from mcp_tools import MCPToolAdapter, make_mcp_tool, mcp_tool_metadata
 
 class MyTool:
     def __init__(self, tool_id, name, description, parameters, **kwargs):
@@ -462,6 +463,19 @@ TOOL_CLASSES = {
     'PDFSearchTool': MyPDFSearchTool
 }
 
+
+class MyMCPFixtureTool(MyTool):
+    def __init__(self, tool_id=None, adapter_id="project_fixture", remote_tool_name="fixture.read", credential_ref=None, approved_resources=None, timeout_seconds=10, max_result_bytes=16384, max_retries=0):
+        parameters = {}
+        defaults = mcp_tool_metadata()
+        super().__init__(tool_id, "MCPFixtureTool", "Approved bounded MCP fixture tool (operator policy is read-only).", parameters, adapter_id=defaults["adapter_id"], remote_tool_name=defaults["remote_tool_name"], credential_ref=defaults["credential_ref"], approved_resources=defaults["approved_resources"], timeout_seconds=defaults["timeout_seconds"], max_result_bytes=defaults["max_result_bytes"], max_retries=defaults["max_retries"])
+
+    def create_tool(self) -> MCPToolAdapter:
+        return make_mcp_tool(tool_id=self.tool_id, adapter_id="project_fixture", remote_tool_name="fixture.read")
+
+
+TOOL_CLASSES["MCPFixtureTool"] = MyMCPFixtureTool
+
 # Maps stable tool identifiers (TOOL_CLASSES keys) to i18n keys used for
 # the translated UI label (`tool.<key>`) and description (`tool.<key>_desc`).
 TOOL_I18N_KEYS = {
@@ -493,6 +507,7 @@ TOOL_I18N_KEYS = {
     'JSONSearchTool': 'json_search',
     'MDXSearchTool': 'mdx_search',
     'PDFSearchTool': 'pdf_search',
+    'MCPFixtureTool': 'mcp_fixture',
 }
 
 # Historic name variants that may still be stored in user databases or
