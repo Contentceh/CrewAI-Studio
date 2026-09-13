@@ -57,3 +57,25 @@ storage and disable telemetry; no production database or credentials are needed.
 The tests cover real subprocess discovery, failed initialization/listing,
 timeouts, authentication error redaction, pagination, disabled connections,
 process cleanup, stale results, background job deduplication and Streamlit reruns.
+
+## Verification on 2026-09-13
+
+- 128 Python tests passed in a disposable, network-isolated container. Four
+  existing deprecation warnings concern fork() in the older smoke tests.
+- After changing buttons to explicit callbacks, both Streamlit page tests passed
+  again. This prevents timer-driven fragment updates from starting probes.
+- Chromium verified the sidebar, a green fixture result, an unchanged check
+  timestamp across automatic fragment updates, and MCP origins on the Tools page;
+  no JavaScript errors were observed.
+- A separate `crewai-studio-mcp:candidate` image was built from the committed
+  snapshot. Its configuration directory is external, not embedded in the image.
+- Production Studio was not restarted: another Studio build was running in
+  parallel. Operator configuration and parallel dependency/adapter work were
+  neither committed nor overwritten by this feature.
+
+The browser regression is `tests/browser_mcp.cjs`. Run with `playwright-core`
+available to Node and `STUDIO_MCP_TEST_URL` pointing to an isolated Studio instance
+(with a trailing slash). `STUDIO_MCP_SCREENSHOT` optionally saves a screenshot.
+`STUDIO_MCP_TEST_CREATE_TOOL=1` adds a fixture instance to that test database;
+leave it unset for a read-only inventory check. The test triggers only MCP
+health discovery and never starts a crew.
