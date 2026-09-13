@@ -1,10 +1,10 @@
 # MCP page
 
-The MCP page inventories Studio's closed `MCP_ADAPTER_REGISTRY` plus native MCP
-service declarations in the operator policy. It never imports another client's
-MCP configuration. The bundled `project_fixture` adapter is explicitly a test
-server. Policy-only entries have no executable runtime profile; the page cannot
-activate them or turn policy-supplied commands/URLs into transports.
+The MCP page inventories Studio's closed `mcp-profiles.yaml` registry plus the
+native MCP runtime. It never imports another client's MCP configuration. The
+bundled `project_fixture` adapter is explicitly a test server. Only registry
+profiles can provide executable transports; UI data cannot provide commands,
+URLs, headers, or credentials.
 
 `app/mcp_inventory.py` reads configuration and maps existing tool instances to
 agents. `app/mcp_health.py` performs isolated discovery probes in a bounded
@@ -13,34 +13,33 @@ starting another probe on a Streamlit rerun. Upstream integration is limited to
 the sidebar entry and MCP origin captions in Tools.
 
 A green status requires a valid MCP initialize response and successful tools/list
-(including pagination). It does not mean a tool was executed or that all tools
-are allowed. Checks never invoke tools/call, LLMs or crews. Results expire after
-five minutes and are invalidated when the runtime configuration changes. Results
-are shared by sessions within one Studio process and cleared on restart.
+(including pagination). Checks never invoke tools/call, LLMs or crews. Results
+expire after five minutes and are invalidated when the runtime configuration
+changes. An enabled profile exposes every tool advertised by its server; no
+tool-name, resource, capability, or destructive-action filter is applied.
 
-Discovery supports the existing stdio runtime adapters. Other transports and
-policy-only profiles cannot receive a green status. The probe uses the same
-minimal environment contract as the current runtime adapter; it does not load
-credential values. Requests share a total timeout (at most 30 seconds), bounded
-response size and at most ten listing pages. Each probe owns and terminates its
-process group and cleans up temporary files. Raw server errors and stderr never
+Discovery supports project-owned stdio profiles. Native health resolves the
+profile id through the same strict command/args/environment builder as runtime
+spawn; it does not accept commands from UI state. Requests share a total timeout
+(at most 30 seconds), bounded response size and at most ten listing pages. Each
+probe owns and terminates its process group. Raw server errors and stderr never
 appear in the UI or diagnostic logs.
 
 ## Persistent operator configuration
 
-`STUDIO_MCP_POLICY_PATH` selects the existing `studio.mcp-policy.v1` YAML file.
-Local runs default to `config/mcp-policy.yaml`. The Compose fragment mounts the
+`STUDIO_MCP_POLICY_PATH` selects the strict `studio.mcp-profiles.v1` YAML file.
+Local runs default to `config/mcp-profiles.yaml`. The Compose fragment mounts the
 host's `studio/config/` at `/etc/crewai/mcp` read-only; config and secrets are
 excluded from the Docker image. Keep this host directory when updating sources.
-The operator-managed files are deliberately not changed or committed by this
-feature. Credentials remain references in the existing operator configuration.
-The fixture's executable definition remains in the existing closed code registry.
+Credentials are file references only and are loaded into a minimal child
+environment immediately before spawn. Values are never rendered, serialized, or
+logged.
 
 The page is read-only: it does not change connection settings, policy permissions,
 tool IDs, agent assignments or credentials. Connection activation, a tool's
-presence in Tools, and assignment in Agents are distinct states. A policy entry
-alone does not add an instrument to an agent. The existing registry is authoritative
-when it and policy mention the same adapter.
+presence in Tools, and assignment in Agents are distinct states. A profile record
+alone does not add an instrument to an agent. The native profile registry is
+authoritative when it and the legacy runtime inventory mention the same id.
 
 ## Updating the fork
 
@@ -57,21 +56,6 @@ storage and disable telemetry; no production database or credentials are needed.
 The tests cover real subprocess discovery, failed initialization/listing,
 timeouts, authentication error redaction, pagination, disabled connections,
 process cleanup, stale results, background job deduplication and Streamlit reruns.
-
-## Verification on 2026-09-13
-
-- 128 Python tests passed in a disposable, network-isolated container. Four
-  existing deprecation warnings concern fork() in the older smoke tests.
-- After changing buttons to explicit callbacks, both Streamlit page tests passed
-  again. This prevents timer-driven fragment updates from starting probes.
-- Chromium verified the sidebar, a green fixture result, an unchanged check
-  timestamp across automatic fragment updates, and MCP origins on the Tools page;
-  no JavaScript errors were observed.
-- A separate `crewai-studio-mcp:candidate` image was built from the committed
-  snapshot. Its configuration directory is external, not embedded in the image.
-- Production Studio was not restarted: another Studio build was running in
-  parallel. Operator configuration and parallel dependency/adapter work were
-  neither committed nor overwritten by this feature.
 
 The browser regression is `tests/browser_mcp.cjs`. Run with `playwright-core`
 available to Node and `STUDIO_MCP_TEST_URL` pointing to an isolated Studio instance

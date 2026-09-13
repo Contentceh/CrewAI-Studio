@@ -20,7 +20,7 @@ MESSAGES = {
     "auth": "Ошибка авторизации MCP.",
     "protocol": "Некорректный ответ MCP или ошибка протокола.",
     "remote": "MCP-сервер отклонил запрос проверки.",
-    "profile": "Исполняемый MCP-профиль не настроен.",
+    "profile": "MCP-профиль недоступен: prerequisite не подтверждён.",
     "transport": "Проверка этого транспорта пока не поддерживается.",
     "cleanup": "Не удалось завершить процесс проверки.",
 }
@@ -58,9 +58,10 @@ def _discover(config):
     with tempfile.TemporaryDirectory(prefix="studio-mcp-health-") as directory:
         try:
             # Match the closed runtime adapter's minimal environment contract.
-            env = {"PYTHONUNBUFFERED": "1", "STAGE2_RUN_ID": "health-check",
+            env = {**config.get("env", {}), "STAGE2_RUN_ID": "health-check",
                    "STAGE2_EVENT_PATH": str(Path(directory) / "events.jsonl")}
-            process = subprocess.Popen(list(config["command"]), stdin=subprocess.PIPE,
+            command = config["command"] if isinstance(config["command"], list) else [config["command"], *config.get("args", [])]
+            process = subprocess.Popen(command, stdin=subprocess.PIPE,
                                        stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                                        env=env, start_new_session=True, close_fds=True)
             os.set_blocking(process.stdin.fileno(), False)
@@ -177,7 +178,18 @@ def probe(connection):
             raise ProbeError("profile")
         if connection.transport != "stdio":
             raise ProbeError("transport")
-        tools = _discover(connection.config)
+        if connection.native:
+            from mcp_profiles import ProfileError, profile_spawn_spec
+            try:
+                command, env, timeout = profile_spawn_spec(connection.adapter_id)
+            except (ProfileError, OSError):
+                raise ProbeError("profile") from None
+            config = {"command": command, "env": env, "timeout_seconds": timeout}
+            tools = _discover(config)
+        else:
+            if not connection.config.get("command"):
+                raise ProbeError("profile")
+            tools = _discover(connection.config)
     except ProbeError as exc:
         error = MESSAGES.get(str(exc), MESSAGES["protocol"])
     except OSError:

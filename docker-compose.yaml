@@ -35,7 +35,7 @@ services:
       CREWAI_KNOWLEDGE_DIR: /var/lib/crewai/knowledge
       CREWAI_EXPORT_DIR: /tmp/crewai-exports
       CREWAI_WORKSPACE_DIR: /var/lib/crewai/workspace
-      STUDIO_MCP_POLICY_PATH: /etc/crewai/mcp/mcp-policy.yaml
+      STUDIO_MCP_POLICY_PATH: /etc/crewai/mcp/mcp-profiles.yaml
     secrets:
       - postgres_password
     volumes:

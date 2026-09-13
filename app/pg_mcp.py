@@ -49,9 +49,9 @@ class PageMCP:
                               on_click=CHECKS.submit, args=(connection,))
                 if pending:
                     st.status("Ожидание результата MCP-проверки…", state="running")
-                if not connection.registered:
-                    st.info("Заготовка в политике: исполняемый MCP-профиль ещё не настроен. "
-                            "Инструменты этого сервиса пока недоступны агентам.")
+                if not connection.registered or not connection.enabled:
+                    reason = connection.config.get("unavailable_reason")
+                    st.info(reason or "Профиль недоступен. Инструменты этого сервиса пока недоступны агентам.")
                 checked = (datetime.fromtimestamp(result.checked_at, timezone.utc).strftime("%d.%m.%Y %H:%M:%S UTC")
                            if result else "Ещё не выполнялась")
                 st.caption(f"Последняя проверка: {checked}")
@@ -63,7 +63,6 @@ class PageMCP:
                                  result.tools if result and result.ok and result.fingerprint == connection.fingerprint else None)
                 if rows:
                     st.dataframe(rows, hide_index=True, width="stretch")
-                    st.caption("Ответ сервера относится к последней успешной проверке; разрешение адаптера, добавление в Tools "
-                               "и назначение агенту — отдельные состояния. Назначение: Agents → Tools.")
+                    st.caption("Ответ сервера относится к последней успешной проверке. Все рекламируемые tools native-профиля доступны без name-level filtering; назначение: Agents → Tools.")
                 else:
                     st.caption("Сервер вернул пустой список инструментов." if result and result.ok else "Список инструментов ещё не получен.")

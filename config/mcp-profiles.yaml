@@ -1,0 +1,150 @@
+schema_version: studio.mcp-profiles.v1
+profiles:
+  - profile_id: project_fixture
+    display_name: MCP Fixture - test server
+    enabled: true
+    unavailable_reason: null
+    transport: stdio
+    command: /usr/local/bin/python
+    args:
+      - /CrewAI-Studio/app/fixtures/mcp_fixture_server.py
+    timeout_seconds: 10
+    credential_files: {}
+    environment: {}
+  - profile_id: github
+    display_name: GitHub
+    enabled: false
+    unavailable_reason: native github-mcp-server v1.12.1 is not installed and verified in the Studio image
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files:
+      GITHUB_PERSONAL_ACCESS_TOKEN: github/api-token
+    environment: {}
+  - profile_id: nocodb
+    display_name: NocoDB
+    enabled: false
+    unavailable_reason: the confirmed host nocodb-mcp wrapper requires Docker access unavailable to Studio; no in-image native server is installed and verified
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files:
+      NOCODB_API_TOKEN: nocodb/api-token
+    environment: {}
+  - profile_id: neo4j
+    display_name: Neo4j
+    enabled: false
+    unavailable_reason: neo4j-mcp-server v1.5.3 is not installed and verified in the Studio image
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files:
+      NEO4J_USERNAME: neo4j/username
+      NEO4J_PASSWORD: neo4j/password
+    environment: {}
+  - profile_id: qdrant
+    display_name: Qdrant
+    enabled: false
+    unavailable_reason: mcp-server-qdrant v0.8.1 requires a confirmed fixed collection; none is configured, and no server is enabled
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files:
+      QDRANT_API_KEY: qdrant/api-key
+    environment: {}
+  - profile_id: prometheus
+    display_name: Prometheus
+    enabled: false
+    unavailable_reason: the pinned Prometheus MCP v0.18.0 server is not installed and no confirmed in-image MCP endpoint/config is available
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files:
+      PROMETHEUS_USERNAME: prometheus/username
+      PROMETHEUS_PASSWORD: prometheus/password
+    environment: {}
+  - profile_id: codex_websearch
+    display_name: Codex web search
+    enabled: false
+    unavailable_reason: provider credential file exists and provider access is confirmed, but this does not provide native MCP transport; no verified project-owned native MCP server/transport is configured
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: perplexity
+    display_name: Perplexity web search
+    enabled: false
+    unavailable_reason: credential file exists but validity/use is unverified and not connected to Studio runtime; no verified project-owned native MCP transport is configured
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: google_drive
+    display_name: Google Drive
+    enabled: false
+    unavailable_reason: available metadata is not a verified project-owned native MCP transport with scoped child delivery
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: grafana
+    display_name: Grafana
+    enabled: false
+    unavailable_reason: only a hostname is available; no verified native MCP server and credential are configured
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: supabase
+    display_name: Supabase
+    enabled: false
+    unavailable_reason: no client credential and no proven project-owned native MCP transport are available
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: docker
+    display_name: Docker
+    enabled: false
+    unavailable_reason: Docker socket and Docker permission are prohibited for Studio
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: patchright
+    display_name: Patchright
+    enabled: false
+    unavailable_reason: host wrapper requires Docker/network access unavailable to Studio
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}
+  - profile_id: searxng
+    display_name: SearXNG
+    enabled: false
+    unavailable_reason: host wrapper is not callable inside Studio and no verified in-image native MCP server is available
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 30
+    credential_files: {}
+    environment: {}

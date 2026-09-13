@@ -1,0 +1,6 @@
+# Retired compatibility marker. Native MCP authorization is the closed
+# profile registry in mcp-profiles.yaml; enabled profiles pass through every
+# tool advertised by their server. There are no tool/resource/approval tiers.
+schema_version: studio.mcp-policy.retired.v1
+registry: config/mcp-profiles.yaml
+full_access: true

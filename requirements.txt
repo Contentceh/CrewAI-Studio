@@ -110,6 +110,7 @@ marko==2.2.1
 MarkupSafe==3.0.3
 marshmallow==3.26.2
 mcp==1.28.1
+mcpadapt==0.1.19
 mdurl==0.1.2
 mmh3==5.2.0
 mpire==2.10.2

@@ -115,24 +115,55 @@ def test_unknown_stale_and_config_changed(connection):
     assert status(connection, result, pending=True, now=101) == '⏳ Проверяется'
 
 
-def test_policy_cannot_supply_commands_or_enable_adapter(tmp_path):
-    path = tmp_path / 'policy.yaml'
-    path.write_text('''schema_version: studio.mcp-policy.v1
-services:
-  external:
-    adapter_id: external
-    adapter_kind: native_mcp
-    enabled: true
-    command: [forbidden]
-  grafana:
-    adapter_kind: reference_only
+def test_native_inventory_precedes_legacy_and_unknown_profile_denied(tmp_path, monkeypatch):
+    path = tmp_path / 'profiles.yaml'
+    path.write_text('''schema_version: studio.mcp-profiles.v1
+profiles:
+  - profile_id: project_fixture
+    display_name: Native fixture
+    enabled: false
+    unavailable_reason: unavailable for test
+    transport: stdio
+    command: null
+    args: []
+    timeout_seconds: 1
+    credential_files: {}
+    environment: {}
 ''')
-    connections, warning = load_inventory({}, path)
-    assert warning is None and len(connections) == 1
-    assert not connections[0].registered
-    assert probe(connections[0]).error == MESSAGES['profile']
-    path.write_text('broken: [')
-    assert load_inventory({}, path)[1]
+    monkeypatch.setenv('STUDIO_MCP_POLICY_PATH', str(path))
+    connections, warning = load_inventory({'project_fixture': {'command': ['/bin/true'], 'enabled': True}}, path)
+    assert warning is None
+    fixture = next(item for item in connections if item.adapter_id == 'project_fixture')
+    assert fixture.native and not fixture.enabled and fixture.registered
+    from mcp_profiles import ProfileError, profile_parameters
+    with pytest.raises(ProfileError):
+        profile_parameters('not-in-registry')
+
+
+def test_native_health_uses_registry_args_and_common_env(tmp_path, monkeypatch):
+    path = tmp_path / 'profiles.yaml'
+    server = tmp_path / 'server.py'
+    path.write_text(f'''schema_version: studio.mcp-profiles.v1
+profiles:
+  - profile_id: native
+    display_name: Native
+    enabled: true
+    unavailable_reason: null
+    transport: stdio
+    command: {sys.executable}
+    args: [{server!s}, extra]
+    timeout_seconds: 1
+    credential_files: {{}}
+    environment: {{PYTHONUNBUFFERED: "1"}}
+''')
+    monkeypatch.setenv('STUDIO_MCP_POLICY_PATH', str(path))
+    conn = load_inventory({}, path)[0][0]
+    assert conn.native
+    captured = {}
+    monkeypatch.setattr('mcp_health._discover', lambda config: captured.update(config) or ())
+    assert probe(conn).ok
+    assert captured['command'] == [sys.executable, str(server), 'extra']
+    assert captured['env'] == {'PYTHONUNBUFFERED': '1'}
 
 
 def test_fixture_mapping_and_agent_assignment_are_read_only():
@@ -145,7 +176,7 @@ def test_fixture_mapping_and_agent_assignment_are_read_only():
     assert tool_rows(conn, [fixture], [agent])[0]['Объявлен сервером'] == 'Не проверено'
     assert rows[0]['В Tools'] == 'T1'
     assert rows[0]['Агенты'] == 'Researcher (A1)'
-    assert rows[1]['Разрешён адаптером'] == 'Нет'
+    assert rows[1]['Доступен full-access профилю'] == 'Да'
     assert agent.tools == [fixture] and fixture.parameters == {}
 
 

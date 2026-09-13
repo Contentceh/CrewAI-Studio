@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
-import yaml
+from mcp_profiles import ProfileError, load_profiles
 
 SERVICE_NAMES = {
     "codex_websearch": "Codex — поиск в интернете",
@@ -15,7 +15,7 @@ SERVICE_NAMES = {
     "qdrant": "Qdrant", "supabase": "Supabase", "prometheus": "Prometheus",
 }
 
-POLICY_PATH = Path(__file__).resolve().parent.parent / "config" / "mcp-policy.yaml"
+POLICY_PATH = Path(__file__).resolve().parent.parent / "config" / "mcp-profiles.yaml"
 
 
 @dataclass(frozen=True)
@@ -27,6 +27,7 @@ class Connection:
     registered: bool
     approved_tools: tuple = ()
     config: dict = field(default_factory=dict, repr=False)
+    native: bool = False
 
     @property
     def fingerprint(self):
@@ -39,39 +40,31 @@ def load_inventory(registry=None, policy_path=None):
         from mcp_tools import MCP_ADAPTER_REGISTRY
         registry = MCP_ADAPTER_REGISTRY
     path = Path(policy_path or os.getenv("STUDIO_MCP_POLICY_PATH", POLICY_PATH))
-    services = {}
     warning = None
     try:
-        if path.stat().st_size > 256 * 1024:
-            raise ValueError("policy size")
-        policy = yaml.safe_load(path.read_text())
-        if not isinstance(policy, dict) or policy.get("schema_version") != "studio.mcp-policy.v1":
-            raise ValueError("policy schema")
-        services = policy.get("services", {})
-        if not isinstance(services, dict) or any(not isinstance(v, dict) for v in services.values()):
-            raise ValueError("services schema")
+        profiles = load_profiles(path)
     except FileNotFoundError:
-        warning = "Файл MCP-политики отсутствует. Показаны только адаптеры runtime."
-    except (OSError, ValueError, yaml.YAMLError):
-        warning = "Не удалось прочитать MCP-политику. Показаны только адаптеры runtime."
-        services = {}
+        warning = "Файл MCP-профилей отсутствует. Показаны только runtime-адаптеры."
+        profiles = {}
+    except (OSError, ProfileError):
+        warning = "Не удалось прочитать строгий MCP-реестр. Показаны только runtime-адаптеры."
+        profiles = {}
     connections = {}
+    for adapter_id, profile in profiles.items():
+        connections[adapter_id] = Connection(
+            adapter_id, profile.get("display_name", SERVICE_NAMES.get(adapter_id, adapter_id)),
+            profile.get("transport", "stdio"), profile.get("enabled", False) is True,
+            True, (), dict(profile), True,
+        )
+    # Legacy custom adapters remain available only when no native profile owns
+    # the id. Native project-owned profiles are authoritative on collisions.
     for adapter_id, config in registry.items():
+        if adapter_id in connections:
+            continue
         connections[adapter_id] = Connection(
             adapter_id, "MCP Fixture — тестовый сервер" if adapter_id == "project_fixture" else adapter_id,
             config.get("transport", "Не задан"), config.get("enabled", True) is True,
-            True, tuple(config.get("tools", ())), dict(config),
-        )
-    for name, service in services.items():
-        adapter_id = service.get("adapter_id", name)
-        if not isinstance(adapter_id, str) or adapter_id in connections:
-            continue
-        if service.get("adapter_kind") != "native_mcp":
-            continue
-        # Policy declarations cannot introduce executable transports or commands.
-        connections[adapter_id] = Connection(
-            adapter_id, SERVICE_NAMES.get(name, str(name)), "Не задан (нет runtime-профиля)",
-            service.get("enabled", False) is True, False, config=dict(service),
+            True, tuple(), dict(config), native=False,
         )
     return list(connections.values()), warning
 
@@ -103,7 +96,7 @@ def tool_rows(connection, tools, agents, advertised=None):
     return [{
         "Инструмент": name,
         "Объявлен сервером": ("Да" if name in advertised else "Нет") if advertised is not None else "Не проверено",
-        "Разрешён адаптером": "Да" if name in connection.approved_tools else "Нет",
+        "Доступен full-access профилю": "Да" if connection.enabled and connection.registered else "Нет",
         "В Tools": ", ".join(instances.get(name, ())) or "Не добавлен",
         "Агенты": ", ".join(sorted(assignments.get(name, ()))) or "Не назначен",
     } for name in sorted(names)]

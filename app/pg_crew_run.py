@@ -8,10 +8,103 @@ import queue
 import time
 import traceback
 import os
+from types import MethodType
+from contextlib import contextmanager
 from console_capture import ConsoleCapture
 from db_utils import load_results, save_result
 from utils import format_result, generate_printable_view, rnd_id, get_tasks_outputs_str
 from i18n import t
+from mcp_profiles import NativeProfileError, native_enabled_profiles, write_capability_evidence
+
+
+def _mcp_error_text(error):
+    if isinstance(error, NativeProfileError):
+        detail = error.code
+        if error.profile_id:
+            detail += f" profile={error.profile_id}"
+        if error.tool_name:
+            detail += f" tool={error.tool_name}"
+        return f"MCP run unavailable ({detail})"
+    return "MCP run unavailable (runtime failure)"
+
+
+def _is_mcp_error(error):
+    current = error
+    while current is not None:
+        module = getattr(current.__class__, "__module__", "")
+        if module.startswith(("mcp", "crewai_tools")) or current.__class__.__name__ in {"MCPToolError", "CrewAIMCPToolError"}:
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def _crew_agents(crew, *, include_manager=True):
+    agents = list(getattr(crew, "agents", ()) or ())
+    manager = getattr(crew, "manager_agent", None)
+    if include_manager and manager is not None and manager not in agents:
+        agents.append(manager)
+    return agents
+
+
+@contextmanager
+def _inject_native_tools(crew, tools):
+    # A manager is handled by _hook_hierarchical_manager because CrewAI 1.5
+    # creates it lazily and rejects pre-existing manager tools.
+    process = getattr(crew, "process", None)
+    hierarchical = str(getattr(process, "value", process)).lower() == "hierarchical"
+    agents = _crew_agents(crew, include_manager=not hierarchical)
+    originals = [(agent, list(getattr(agent, "tools", ()) or ())) for agent in agents]
+    try:
+        for agent, original in originals:
+            existing = {getattr(tool, "name", None) for tool in original}
+            for tool in tools:
+                name = getattr(tool, "name", None)
+                if name in existing:
+                    raise NativeProfileError("duplicate_tool_name", "existing", name)
+            agent.tools = original + list(tools)
+        yield
+    finally:
+        for agent, original in reversed(originals):
+            agent.tools = original
+
+
+@contextmanager
+def _hook_hierarchical_manager(crew, tools):
+    original_create = getattr(crew, "_create_manager_agent", None)
+    if not callable(original_create):
+        yield
+        return
+    original_manager = getattr(crew, "manager_agent", None)
+    manager_original_tools = list(getattr(original_manager, "tools", ()) or ()) if original_manager is not None else []
+    state = {"created": None}
+
+    def create_manager(self):
+        manager = original_manager
+        if manager is not None:
+            manager.tools = []
+        try:
+            result = original_create()
+            manager = getattr(self, "manager_agent", None)
+            if manager is None:
+                raise NativeProfileError("manager_creation_failed")
+            state["created"] = manager
+            manager.tools = manager_original_tools + list(tools)
+            return result
+        except Exception:
+            if manager is not None:
+                manager.tools = manager_original_tools
+            raise
+
+    try:
+        crew._create_manager_agent = MethodType(create_manager, crew)
+        yield
+    finally:
+        crew._create_manager_agent = original_create
+        manager = state["created"] or original_manager
+        if manager is not None:
+            manager.tools = manager_original_tools
+        if original_manager is None and state["created"] is not None:
+            crew.manager_agent = None
 
 
 class PageCrewRun:
@@ -76,21 +169,34 @@ class PageCrewRun:
         
         return placeholders
 
-    def run_crew(self, crewai_crew, inputs, message_queue):
+    def run_crew(self, crewai_crew, inputs, message_queue, *, mcp_event_path=None,
+                 mcp_evidence_path=None):
         if (str(os.getenv('AGENTOPS_ENABLED')).lower() in ['true', '1']) and not ss.get('agentops_failed', False):
             import agentops
             agentops.start_session()
         try:
-            result = crewai_crew.kickoff(inputs=inputs)
-            message_queue.put({"result": result})
+            # This scope is entered and exited by the worker, never by the UI
+            # thread.  It also guarantees partial adapter cleanup on setup
+            # failure and restoration after kickoff exceptions.
+            with native_enabled_profiles(event_path=mcp_event_path) as (native_tools, metadata):
+                with _inject_native_tools(crewai_crew, native_tools):
+                    with _hook_hierarchical_manager(crewai_crew, native_tools):
+                        result = crewai_crew.kickoff(inputs=inputs)
+            evidence = write_capability_evidence(metadata, output=mcp_evidence_path)
+            message_queue.put({"result": result, "mcp_evidence": evidence})
+        except NativeProfileError as e:
+            message_queue.put({"result": _mcp_error_text(e), "mcp_failure": True})
         except Exception as e:
+            if _is_mcp_error(e):
+                message_queue.put({"result": _mcp_error_text(e), "mcp_failure": True})
+                return
             if (str(os.getenv('AGENTOPS_ENABLED')).lower() in ['true', '1']) and not ss.get('agentops_failed', False):
                 agentops.end_session()
             stack_trace = traceback.format_exc()
             print(f"Error running crew: {str(e)}\n{stack_trace}")
             message_queue.put({"result": f"Error running crew: {str(e)}", "stack_trace": stack_trace})
         finally:
-            if hasattr(ss, 'console_capture'):
+            if getattr(ss, 'console_capture', None) is not None:
                 ss.console_capture.stop()
 
     def get_mycrew_by_name(self, crewname):
