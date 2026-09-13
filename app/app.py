@@ -5,6 +5,7 @@ from pg_agents import PageAgents
 from pg_tasks import PageTasks
 from pg_crews import PageCrews
 from pg_tools import PageTools
+from pg_mcp import PageMCP
 from pg_crew_run import PageCrewRun
 from pg_export_crew import PageExportCrew
 from pg_results import PageResults
@@ -18,6 +19,7 @@ def pages():
     return {
         t('page.crews'): PageCrews(),
         t('page.tools'): PageTools(),
+        'MCP': PageMCP(),
         t('page.agents'): PageAgents(),
         t('page.tasks'): PageTasks(),
         t('page.knowledge'): PageKnowledge(),

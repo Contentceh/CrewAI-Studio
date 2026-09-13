@@ -7,3 +7,8 @@ run_*.sh
 .gitattributes
 .env_example
 Dockerfile
+
+config/
+.env
+.secrets/
+__pycache__/

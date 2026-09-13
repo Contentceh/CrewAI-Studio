@@ -5,6 +5,7 @@ from streamlit import session_state as ss
 import db_utils
 from i18n import t
 from mcp_tools import mcp_tool_metadata
+from mcp_inventory import tool_origin
 
 class PageTools:
     def __init__(self):
@@ -57,6 +58,11 @@ class PageTools:
                     expander_title = display_name if is_complete else f"❗ {display_name}"
                     with st.expander(expander_title):
                         st.write(tool.description)
+                        origin = tool_origin(tool)
+                        if origin:
+                            source = "MCP Fixture — тестовый сервер" if origin[0] == "project_fixture" else origin[0]
+                            st.text(f"MCP-сервер: {source} | Инструмент: {origin[1]}")
+                            st.caption("Доступность подключения: вкладка MCP. Назначение агентам: Agents → Tools.")
                         if tool.name == "MCPFixtureTool":
                             st.caption(f"Adapter: {mcp_tool_metadata()['adapter_id']} | Tool: {mcp_tool_metadata()['remote_tool_name']} | Resources: {', '.join(mcp_tool_metadata()['approved_resources'])} | Timeout: {mcp_tool_metadata()['timeout_seconds']}s | Retries: {mcp_tool_metadata()['max_retries']}")
                         for param_name in tool.get_parameter_names():
